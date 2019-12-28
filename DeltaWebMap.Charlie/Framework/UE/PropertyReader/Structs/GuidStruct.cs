@@ -15,7 +15,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Structs
             return $"uuid={uuid.ToString()}";
         }
 
-        public override void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop)
+        public override void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop, ArrayProperty array)
         {
             byte[] data = ms.ReadBytes(4 * 4);
             uuid = new Guid(data);

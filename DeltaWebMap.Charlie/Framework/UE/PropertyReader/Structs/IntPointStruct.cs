@@ -16,7 +16,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Structs
             return $"p1={p1}, p2={p2}";
         }
 
-        public override void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop)
+        public override void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop, ArrayProperty array)
         {
             p1 = ms.ReadInt();
             p2 = ms.ReadInt();

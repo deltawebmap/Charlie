@@ -1,8 +1,13 @@
-﻿using DeltaWebMap.Charlie.Framework.UE;
+﻿using DeltaWebMap.Charlie.Framework;
+using DeltaWebMap.Charlie.Framework.Exceptions;
+using DeltaWebMap.Charlie.Framework.UE;
+using DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine;
 using DeltaWebMap.Charlie.Framework.UE.Assets;
 using DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader;
+using Newtonsoft.Json;
 using System;
+using System.IO;
 
 namespace DeltaWebMap.Charlie
 {
@@ -23,14 +28,38 @@ namespace DeltaWebMap.Charlie
         static void Main(string[] args)
         {
             UEInstall install = new UEInstall(DEBUG_INSTALL_ARK);
-            UAssetBlueprint bp = install.OpenBlueprint(DEBUG_FILE_1);
-            bp.DebugWrite();
+            CharlieConfig config = JsonConvert.DeserializeObject<CharlieConfig>(File.ReadAllText("example_config.json"));
+            CharlieSession session = new CharlieSession(config);
+            session.Load();
+
+            //UAssetBlueprint bpt = install.OpenBlueprint(@"E:\SteamLibrary\steamapps\common\ARK\ShooterGame\Content\PrimalEarth\CoreBlueprints\PlayerPawnTest.uasset");
+            //bpt.DebugWrite();
             //bp.defaults.props.Sort(new Comparison<BaseProperty>((x, y) => x.name.CompareTo(y.name)));
             //bp.myDefaults.props.Sort(new Comparison<BaseProperty>((x, y) => x.name.CompareTo(y.name)));
             /*foreach (var d in bp.defaults.props)
             {
                 Console.WriteLine(d.name + " - " + d.type + " - " + d.GetDebugString());
             }*/
+
+            //Seek the files
+            AssetSeeker s = new AssetSeeker(install, config.exclude_regex);
+            var files = s.SeekAssets(session);
+
+            //Now run each file
+            foreach(var f in files)
+            {
+                Console.WriteLine(f.Key);
+                try
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    UAssetBlueprint bp = install.OpenBlueprint(f.Key);
+                    Console.ForegroundColor = ConsoleColor.White;
+                } catch (FailedToFindDefaultsException)
+                {
+                    Console.WriteLine("FAILED TO FIND DEFAULTS");
+                }
+            }
+
             Console.WriteLine("Done");
             Console.ReadLine();
         }

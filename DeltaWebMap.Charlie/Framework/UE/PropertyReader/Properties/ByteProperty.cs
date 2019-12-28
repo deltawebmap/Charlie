@@ -31,7 +31,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
 
         public override void Read(IOMemoryStream ms, UAssetFile file)
         {
-            if (length == 1)
+            if (length == 1 || isArray) /* Unsure if isArray is valid here. It threw an error on length = 0 before. */
             {
                 //Read in the enum name
                 enumName = ms.ReadNameTableEntry(file);
@@ -61,12 +61,6 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
                 enumType = ms.ReadNameTableEntry(file);
                 ms.position += 4;
                 enumValue = ms.ReadNameTableEntry(file);
-                ms.position += 4;
-            }
-            else if (length == 0)
-            {
-                //Just skip.
-                throw new NotImplementedException();
                 ms.position += 4;
             }
             else

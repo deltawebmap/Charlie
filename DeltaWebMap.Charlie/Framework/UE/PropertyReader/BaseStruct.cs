@@ -8,7 +8,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader
 {
     public abstract class BaseStruct
     {
-        public abstract void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop);
+        public abstract void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop, ArrayProperty array);
         public abstract string GetDebugString();
     }
 }

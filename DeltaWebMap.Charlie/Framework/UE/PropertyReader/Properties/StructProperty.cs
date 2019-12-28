@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using DeltaWebMap.Charlie.Framework.UE.Assets;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader.Structs;
@@ -11,6 +12,36 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
         public string structType; //Only set if this is not in an array
         public int structTypeIndex; //Only set if this is not in an array
         public BaseStruct value;
+
+        /// <summary>
+        /// A list of string names that are known to be prop list structs
+        /// </summary>
+        public static readonly string[] PROP_LIST_STRUCT_NAMES = new string[]
+        {
+            "ItemStatInfo",
+            "ItemNetID",
+            "ItemNetInfo",
+            "Transform",
+            "PrimalPlayerDataStruct",
+            "PrimalPlayerCharacterConfigStruct",
+            "PrimalPersistentCharacterStatsStruct",
+            "TribeData",
+            "TribeGovernment",
+            "TerrainInfo",
+            "ArkInventoryData",
+            "DinoOrderGroup",
+            "ARKDinoData",
+            "WeightedObjectList",
+            "DecalData",
+            /* Below are more unsure, but still likely */
+            "Anchors",
+            "StatusValueModifierDescription",
+            "HUDElement",
+            "ProjectileArc",
+            "MultiUseEntry",
+            "BoidBehavior",
+            "FlockPersistentData"
+        };
 
         public override string GetDebugString()
         {
@@ -33,7 +64,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
 
                 //Read
                 BaseStruct st;
-                if (structType == "ItemStatInfo" || structType == "ItemNetID" || structType == "ItemNetInfo" || structType == "Transform" || structType == "PrimalPlayerDataStruct" || structType == "PrimalPlayerCharacterConfigStruct" || structType == "PrimalPersistentCharacterStatsStruct" || structType == "TribeData" || structType == "TribeGovernment" || structType == "TerrainInfo" || structType == "ArkInventoryData" || structType == "DinoOrderGroup" || structType == "ARKDinoData")
+                if (PROP_LIST_STRUCT_NAMES.Contains(structType))
                 {
                     //Open this as a struct property list.
                     st = new PropListStruct();
@@ -90,12 +121,24 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
                 }
 
                 //Read
-                st.ReadStruct(ms, file, this);
+                st.ReadStruct(ms, file, this, array);
                 value = st;
             } else
             {
-                var st = new PropListStruct();
-                st.ReadStruct(ms, file, this);
+                //Try and determine the struct type from the length. Seems very ugly
+                //Takes some inspiration from https://github.com/ark-mod/ArkSavegameToolkitNet/blob/master/ArkSavegameToolkitNet/Arrays/ArkArrayStruct.cs
+                BaseStruct st;
+                if (array.length == array.arrayItemCount * 4 + 4)
+                    st = new ColorStruct();
+                else if (array.length == array.arrayItemCount * 12 + 4)
+                    st = new Vector3Struct();
+                else if (array.length == array.arrayItemCount * 16 + 4)
+                    st = new LinearColorStruct();
+                else
+                    st = new PropListStruct(); //Assume this is a list
+
+                //Read
+                st.ReadStruct(ms, file, this, array);
                 value = st;
             }
         }

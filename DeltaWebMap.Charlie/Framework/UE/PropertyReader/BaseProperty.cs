@@ -16,6 +16,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader
         public int index;
 
         public bool isArray;
+        public ArrayProperty array;
 
         public long contentBeginPosition;
 
@@ -91,6 +92,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader
             //Now, read the prop
             prop.contentBeginPosition = ms.position;
             prop.isArray = array != null;
+            prop.array = array;
             prop.Read(ms, f);
 
             //Return this deserialized property

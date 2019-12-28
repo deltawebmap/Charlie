@@ -1,4 +1,5 @@
-﻿using DeltaWebMap.Charlie.Framework.UE.PropertyReader;
+﻿using DeltaWebMap.Charlie.Framework.Exceptions;
+using DeltaWebMap.Charlie.Framework.UE.PropertyReader;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties;
 using System;
 using System.Collections.Generic;
@@ -28,6 +29,11 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
         /// </summary>
         public List<UENamespaceFile> components;
 
+        /// <summary>
+        /// The construction script head.
+        /// </summary>
+        public EmbeddedGameObjectTableHead constructor;
+
         public override void BaseReadFile(UEInstall install, string path)
         {
             base.BaseReadFile(install, path);
@@ -39,7 +45,8 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
             ReadMyDefaults();
 
             //Read the construction script
-            ReadConstructionScript();
+            if(constructor != null)
+                ReadConstructionScript();
 
             //Read parent, if we have one
             if (parentFile != null)
@@ -91,6 +98,12 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
             //Now, read and decode the metadata head
             var metadata = ReadUPropertyGroupFromObject(metadataHead);
 
+            //Get the construction script from this
+            if (metadata.HasProperty("SimpleConstructionScript"))
+                constructor = metadata.GetPropertyByName<ObjectProperty>("SimpleConstructionScript").GetEmbeddedReferencedHead(this);
+            else
+                constructor = null;
+
             //Get the parent class file and follow to get the original, containing the class name
             var parentHead = metadata.GetPropertyByName<ObjectProperty>("ParentClass").GetReferencedHead(this).GetUnderlyingHead(this);
 
@@ -109,7 +122,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
             //Find
             var head = GetEmbedByTypeName(defaultHeaderName);
             if (head == null)
-                throw new Exception("Could not find defaults!");
+                throw new FailedToFindDefaultsException();
 
             //Decode and read
             myDefaults = ReadUPropertyGroupFromObject(head);
@@ -133,11 +146,8 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
 
         private void ReadConstructionScript()
         {
-            //Get the construction script head
-            EmbeddedGameObjectTableHead head = GetEmbedByTypeName("SimpleConstructionScript");
-
             //Read
-            var construction = ReadUPropertyGroupFromObject(head);
+            var construction = ReadUPropertyGroupFromObject(constructor);
 
             //Set components to a new list for the next step
             components = new List<UENamespaceFile>();

@@ -1,4 +1,5 @@
 ﻿using DeltaWebMap.Charlie.Framework.UE.Assets;
+using DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,17 +10,17 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader
     {
         public List<BaseProperty> props;
 
-        public void ReadProps(IOMemoryStream ms, UAssetFile f)
+        public void ReadProps(IOMemoryStream ms, UAssetFile f, ArrayProperty s = null)
         {
             //Create props list
             props = new List<BaseProperty>();
             
             //Read until None, which will return null
-            BaseProperty p = BaseProperty.ReadProperty(ms, f, null);
+            BaseProperty p = BaseProperty.ReadProperty(ms, f, s);
             while(p != null)
             {
                 props.Add(p);
-                p = BaseProperty.ReadProperty(ms, f, null);
+                p = BaseProperty.ReadProperty(ms, f, s);
             }
 
             //Now, link all of the properties

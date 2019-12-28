@@ -15,10 +15,10 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Structs
             return $"properties(COUNT)={properties.props.Count}";
         }
 
-        public override void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop)
+        public override void ReadStruct(IOMemoryStream ms, UAssetFile f, StructProperty prop, ArrayProperty array)
         {
             properties = new UPropertyGroup();
-            properties.ReadProps(ms, f);
+            properties.ReadProps(ms, f, null);
         }
     }
 }

@@ -176,5 +176,22 @@ namespace DeltaWebMap.Charlie.Framework
                 Array.Reverse(buf);
             return buf;
         }
+
+        public static byte[] StaticReadBytes(Stream s, int size, bool is_little_endian = true)
+        {
+            //Read in from the buffer and respect the little endian setting.
+            byte[] buf = new byte[size];
+            //Read
+            s.Read(buf, 0, size);
+            //Respect endians
+            if (is_little_endian != BitConverter.IsLittleEndian)
+                Array.Reverse(buf);
+            return buf;
+        }
+
+        public static int StaticReadInt32(Stream s, bool is_little_endian = true)
+        {
+            return BitConverter.ToInt32(StaticReadBytes(s, 4, is_little_endian), 0);
+        }
     }
 }
