@@ -22,7 +22,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
                 blacklistRegex[i] = new Regex(blacklist[i]);
         }
 
-        public Dictionary<string, DiscoveredFileType> SeekAssets(CharlieSession session)
+        public Dictionary<string, DiscoveredFileType> SeekAssets(CharliePersist session)
         {          
             //Check if we *need* to check this
             if((DateTime.UtcNow - session.discovery.time).TotalDays < 3 && session.discovery.files.Values.Count > 0)

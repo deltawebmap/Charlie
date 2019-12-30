@@ -15,6 +15,11 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
         public UENamespaceFile parentFile;
 
         /// <summary>
+        /// The parent classname
+        /// </summary>
+        public UAssetBlueprint parentClass;
+
+        /// <summary>
         /// My own defaults. Does NOT read parent values.
         /// </summary>
         public UPropertyGroup myDefaults;
@@ -53,6 +58,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
             {
                 //Read parent
                 UAssetBlueprint parent = GetParentBlueprint();
+                parentClass = parent;
 
                 //Now, copy the defaults and override ones that we override
                 defaults = parent.defaults.GetCopy();
@@ -100,12 +106,12 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
 
             //Get the construction script from this
             if (metadata.HasProperty("SimpleConstructionScript"))
-                constructor = metadata.GetPropertyByName<ObjectProperty>("SimpleConstructionScript").GetEmbeddedReferencedHead(this);
+                constructor = metadata.GetPropertyByName<ObjectProperty>("SimpleConstructionScript").GetEmbeddedReferencedHead();
             else
                 constructor = null;
 
             //Get the parent class file and follow to get the original, containing the class name
-            var parentHead = metadata.GetPropertyByName<ObjectProperty>("ParentClass").GetReferencedHead(this).GetUnderlyingHead(this);
+            var parentHead = metadata.GetPropertyByName<ObjectProperty>("ParentClass").GetReferencedHead().GetUnderlyingHead(this);
 
             //The parent file might be a C++ class, which we can't read. If that's the case, just set the parent to null.
             if (parentHead.IsValidFile())
@@ -159,13 +165,13 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
                 foreach (var r in roots.properties)
                 {
                     //Get the node info
-                    var ehead = ((ObjectProperty)r).GetEmbeddedReferencedHead(this);
+                    var ehead = ((ObjectProperty)r).GetEmbeddedReferencedHead();
                     var data = ReadUPropertyGroupFromObject(ehead);
 
                     //Use the node info to get the template
                     if (!data.HasProperty("ComponentTemplate"))
                         continue;
-                    var templateHead = data.GetPropertyByName<ObjectProperty>("ComponentTemplate").GetEmbeddedReferencedHead(this);
+                    var templateHead = data.GetPropertyByName<ObjectProperty>("ComponentTemplate").GetEmbeddedReferencedHead();
 
                     //Use the template ID to get the referenced GameObject. Then, get the underlying header
                     var templateData = gameObjectReferences[(-templateHead.id) - 1].GetUnderlyingHead(this);
@@ -179,6 +185,18 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes
                     components.Add(templateDataFullname);
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets the top-most parent that we can access
+        /// </summary>
+        /// <returns></returns>
+        public UAssetBlueprint GetUnderlyingParent()
+        {
+            UAssetBlueprint bp = this;
+            while (bp.parentClass != null)
+                bp = bp.parentClass;
+            return bp;
         }
     }
 }

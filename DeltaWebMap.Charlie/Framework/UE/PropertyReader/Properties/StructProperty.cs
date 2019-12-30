@@ -40,7 +40,17 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
             "ProjectileArc",
             "MultiUseEntry",
             "BoidBehavior",
-            "FlockPersistentData"
+            "FlockPersistentData",
+            /* Even more */
+            "CustomItemByteArrays",
+            "CustomItemDoubles",
+            "PrimalStructureSnapTagSettings",
+            "HordeCrateDifficultyLevel",
+            "HordeCrateNPCGroup",
+            "DinoSetup",
+            "WeaponAnim",
+            "CanvasIcon",
+            "WeaponData"
         };
 
         public override string GetDebugString()

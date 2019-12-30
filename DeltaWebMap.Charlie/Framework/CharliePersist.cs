@@ -1,4 +1,6 @@
 ﻿using DeltaWebMap.Charlie.Framework.Persist;
+using DeltaWebMap.Charlie.Framework.Persist.Db;
+using LibDeltaSystem.Entities.ArkEntries;
 using LiteDB;
 using Newtonsoft.Json;
 using System;
@@ -8,16 +10,21 @@ using System.Text;
 
 namespace DeltaWebMap.Charlie.Framework
 {
-    public class CharlieSession
+    public class CharliePersist
     {
         public CharlieConfig config;
 
         public LiteDatabase db;
+        public LiteCollection<CDbUploadedAsset> db_uploaded_assets;
+        public LiteCollection<CDbTexture2D> db_uploaded_texture;
         public DiscoveryFile discovery;
 
-        public CharlieSession(CharlieConfig config)
+        public CharliePersist(CharlieConfig config)
         {
             this.config = config;
+            this.db = new LiteDatabase(config.persist + "charlie.db");
+            this.db_uploaded_assets = db.GetCollection<CDbUploadedAsset>("uploaded_assets");
+            this.db_uploaded_texture = db.GetCollection<CDbTexture2D>("uploaded_textures");
         }
 
         public void Load()

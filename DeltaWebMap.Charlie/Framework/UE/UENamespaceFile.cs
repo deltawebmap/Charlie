@@ -16,6 +16,11 @@ namespace DeltaWebMap.Charlie.Framework.UE
             return info.FullName;
         }
 
+        public string GetGamePath()
+        {
+            return "/Game/" + info.FullName.Substring(install.info.FullName.Length);
+        }
+
         public UENamespaceFile(UEInstall install, string path)
         {
             this.install = install;

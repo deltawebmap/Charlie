@@ -38,11 +38,16 @@ namespace DeltaWebMap.Charlie.Framework.UE.Assets
         public GameObjectTableHead[] gameObjectReferences;
         public EmbeddedGameObjectTableHead[] gameObjectEmbeds;
         public UEInstall install;
+        public UENamespaceFile file;
+        public string classname;
+        public string pathname { get { return file.info.FullName; } }
 
         public virtual void BaseReadFile(UEInstall install, string path)
         {
             //Set
             this.install = install;
+            this.file = new UENamespaceFile(install, path);
+            this.classname = this.file.info.Name.Substring(0, file.info.Name.Length - file.info.Extension.Length);
             
             //Create a stream
             stream = new IOMemoryStream(new FileStream(path, FileMode.Open, FileAccess.Read), true);

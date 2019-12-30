@@ -39,6 +39,8 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
             properties = new BaseProperty[arrayItemCount];
             for (int i = 0; i < arrayItemCount; i++)
                 properties[i] = BaseProperty.ReadProperty(ms, file, this);
+            for (int i = 0; i < arrayItemCount; i++)
+                properties[i].Link(null, file);
         }
     }
 }

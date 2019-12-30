@@ -1,5 +1,7 @@
-﻿using DeltaWebMap.Charlie.Framework;
+﻿using DeltaWebMap.Charlie.Converters;
+using DeltaWebMap.Charlie.Framework;
 using DeltaWebMap.Charlie.Framework.Exceptions;
+using DeltaWebMap.Charlie.Framework.Firebase;
 using DeltaWebMap.Charlie.Framework.UE;
 using DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine;
 using DeltaWebMap.Charlie.Framework.UE.Assets;
@@ -28,9 +30,9 @@ namespace DeltaWebMap.Charlie
         static void Main(string[] args)
         {
             UEInstall install = new UEInstall(DEBUG_INSTALL_ARK);
-            CharlieConfig config = JsonConvert.DeserializeObject<CharlieConfig>(File.ReadAllText("example_config.json"));
-            CharlieSession session = new CharlieSession(config);
-            session.Load();
+            CharlieConfig config = JsonConvert.DeserializeObject<CharlieConfig>(File.ReadAllText(@"C:\Users\Roman\Documents\delta_dev\other\Charlie\config.json"));
+            CharliePersist persist = new CharliePersist(config);
+            persist.Load();
 
             //UAssetBlueprint bpt = install.OpenBlueprint(@"E:\SteamLibrary\steamapps\common\ARK\ShooterGame\Content\PrimalEarth\CoreBlueprints\PlayerPawnTest.uasset");
             //bpt.DebugWrite();
@@ -41,24 +43,16 @@ namespace DeltaWebMap.Charlie
                 Console.WriteLine(d.name + " - " + d.type + " - " + d.GetDebugString());
             }*/
 
-            //Seek the files
-            AssetSeeker s = new AssetSeeker(install, config.exclude_regex);
-            var files = s.SeekAssets(session);
+            CharlieSession session = new CharlieSession(install, config);
+            session.Run();
 
-            //Now run each file
-            foreach(var f in files)
-            {
-                Console.WriteLine(f.Key);
-                try
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    UAssetBlueprint bp = install.OpenBlueprint(f.Key);
-                    Console.ForegroundColor = ConsoleColor.White;
-                } catch (FailedToFindDefaultsException)
-                {
-                    Console.WriteLine("FAILED TO FIND DEFAULTS");
-                }
-            }
+            //install.OpenTexture2D(@"E:\Programs\ARKEditor\Projects\ShooterGame\Content\PrimalEarth\UI\Empty_RaptorHead_Icon.uasset");
+            //UAssetTexture2D tex = install.OpenTexture2D(@"E:\SteamLibrary\steamapps\common\ARK\ShooterGame\Content\Aberration\Icons\Dinos\Empty_RockDrakeHead_Icon.uasset");
+
+            //FirebaseService fs = new FirebaseService(config.firebase_cfg);
+
+            //session.assetManager.AddTexture2D(tex);
+            session.EndSession();
 
             Console.WriteLine("Done");
             Console.ReadLine();

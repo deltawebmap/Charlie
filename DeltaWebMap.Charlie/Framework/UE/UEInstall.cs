@@ -77,5 +77,35 @@ namespace DeltaWebMap.Charlie.Framework.UE
             //Return it
             return bp;
         }
+
+        /// <summary>
+        /// Opens a Material
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public UAssetMaterial OpenMaterial(string path)
+        {
+            //Read
+            UAssetMaterial bp = new UAssetMaterial();
+            bp.BaseReadFile(this, path);
+
+            //Return it
+            return bp;
+        }
+
+        /// <summary>
+        /// Opens a Texture2D
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public UAssetTexture2D OpenTexture2D(string path)
+        {
+            //Read
+            UAssetTexture2D bp = new UAssetTexture2D();
+            bp.BaseReadFile(this, path);
+
+            //Return it
+            return bp;
+        }
     }
 }

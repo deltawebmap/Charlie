@@ -1,12 +1,1 @@
-﻿{
-  "exclude_regex": [
-    "/Game/Maps/.*",
-    "/Game/Localization/.*",
-    "/Game/PrimalEarth/Weapon[^/]+.*",
-    "/Game/ReflectionCaptures/.*",
-    ".*/(Core)?(Animation|Anim|Effect|Environment|Material|Mesh|Particle|Sound|Texture)s?/.*",
-    ".*/T_[^/]+",
-    ".*/Meshes/.*"
-  ],
-  "persist": "C:\\Users\\Roman\\Documents\\delta_dev\\other\\Charlie\\"
-}
+﻿
