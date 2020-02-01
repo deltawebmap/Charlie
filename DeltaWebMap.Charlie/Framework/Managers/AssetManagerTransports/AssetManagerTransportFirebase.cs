@@ -12,6 +12,7 @@ using System.IO.Compression;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports
 {
@@ -22,6 +23,12 @@ namespace DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports
         public string version;
         public List<Tuple<string, string, Stream>> queue;
         public long totalSize;
+        public LockObject logLock;
+
+        public AssetManagerTransportFirebase()
+        {
+            this.logLock = new LockObject();
+        }
 
         public override string AddFile(string pathname, Stream data)
         {
@@ -62,21 +69,42 @@ namespace DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports
             version = CreateVersion().name;
 
             //Log
-            Log($"About to populate {queue.Count} files, {totalSize / 1000 / 1000} MB total");
+            Log($"About to populate {queue.Count} files, {totalSize / 1000 } KB total");
             
             //We'll commit all files
             FirebasePopulateFilesResponse population = PopulateFiles();
-
-            //Send all files
-            int i = 0;
-            long remaining = totalSize;
-            foreach(var v in queue)
+            if(population.uploadRequiredHashes != null)
             {
-                Log($"About to upload #{i}, {v.Item1} with length of {v.Item3.Length / 1000/ 1000} MB. {remaining / 1000 / 1000} / {totalSize / 1000 / 1000} MB remain");
-                SendHTTPRequestMetal(population.uploadUrl + "/" + v.Item2.ToLower(), "POST", "application/octet-stream", v.Item3);
-                i++;
-                remaining -= v.Item3.Length;
-            }
+                //Send all files
+                long remaining = totalSize;
+                int remainingItems = queue.Count;
+                Parallel.For(0, queue.Count, (int i) =>
+                {
+                    var v = queue[i];
+                    bool shouldUpload;
+                    lock (queue)
+                    {
+                        string hash = v.Item2.ToLower();
+                        shouldUpload = population.uploadRequiredHashes.Contains(hash);
+                        if (shouldUpload)
+                            population.uploadRequiredHashes.Remove(hash);
+                    }
+                    if (shouldUpload)
+                    {
+                        Log($"About to upload #{i}, {v.Item1} with length of {v.Item3.Length / 1000} KB. {remaining / 1000} / {totalSize / 1000} KB ({remainingItems} items) remain");
+                        SendHTTPRequestMetal(population.uploadUrl + "/" + v.Item2.ToLower(), "POST", "application/octet-stream", v.Item3);
+                    }
+                    else
+                    {
+                        Log($"Skipping #{i} because it is already used");
+                    }
+                    remaining -= v.Item3.Length;
+                    remainingItems--;
+                });
+            } else
+            {
+                Log("No files to upload!");
+            }          
 
             //Finalize
             Log($"About to finalize");
@@ -101,7 +129,8 @@ namespace DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports
 
         private void Log(string msg)
         {
-            Console.WriteLine($"[AssetManagerTransportFirebase] " + msg);
+            lock(logLock)
+                Console.WriteLine($"[AssetManagerTransportFirebase] " + msg);
         }
 
         private FirebasePopulateFilesResponse PopulateFiles()

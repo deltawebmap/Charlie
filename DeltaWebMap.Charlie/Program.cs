@@ -44,7 +44,7 @@ namespace DeltaWebMap.Charlie
             }*/
 
             CharlieSession session = new CharlieSession(install, config);
-            session.Run();
+            CharlieConverter.Run(session);
 
             //install.OpenTexture2D(@"E:\Programs\ARKEditor\Projects\ShooterGame\Content\PrimalEarth\UI\Empty_RaptorHead_Icon.uasset");
             //UAssetTexture2D tex = install.OpenTexture2D(@"E:\SteamLibrary\steamapps\common\ARK\ShooterGame\Content\Aberration\Icons\Dinos\Empty_RockDrakeHead_Icon.uasset");

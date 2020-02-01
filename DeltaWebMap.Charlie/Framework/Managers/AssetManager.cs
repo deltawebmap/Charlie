@@ -16,14 +16,37 @@ namespace DeltaWebMap.Charlie.Framework.Managers
     public class AssetManager
     {
         public CharlieConfig config;
-        public CharliePersist persist;
-        public AssetManagerTransport transport;
+        public CharlieSession session;
+        private AssetManagerTransport transport;
 
-        public AssetManager(CharlieConfig config, CharliePersist persist, AssetManagerTransport transport)
+        private List<CDbTexture2D> queuedTextureInserts;
+        private List<CDbUploadedAsset> queuedAssetInserts;
+
+        public AssetManager(CharlieConfig config, CharlieSession session, AssetManagerTransport transport)
         {
             this.config = config;
-            this.persist = persist;
+            this.session = session;
             this.transport = transport;
+            queuedTextureInserts = new List<CDbTexture2D>();
+            queuedAssetInserts = new List<CDbUploadedAsset>();
+            transport.StartSession(config);
+        }
+
+        /// <summary>
+        /// Should be run to finalize all items inserted
+        /// </summary>
+        public void FinalizeItems()
+        {
+            //Run finalize on the transport
+            transport.EndSession();
+
+            //Update our local DB now that we know all were added successfully
+            foreach(var e in queuedTextureInserts)
+                session.persist.db_uploaded_texture.Upsert(e);
+            foreach (var e in queuedAssetInserts)
+                session.persist.db_uploaded_assets.Upsert(e);
+            queuedTextureInserts.Clear();
+            queuedAssetInserts.Clear();
         }
 
         /// <summary>
@@ -36,7 +59,7 @@ namespace DeltaWebMap.Charlie.Framework.Managers
             byte[] hash = texture.GetSHA256();
             
             //Get existing data for this texture (if any)
-            CDbTexture2D metadata = persist.db_uploaded_texture.FindById(texture.file.GetGamePath());
+            CDbTexture2D metadata = session.persist.db_uploaded_texture.FindById(texture.file.GetGamePath());
             if(metadata != null)
             {
                 //Compare the hash code to see if they match. If they do, return the existing data
@@ -85,7 +108,7 @@ namespace DeltaWebMap.Charlie.Framework.Managers
                 sha256 = hash,
                 time = DateTime.UtcNow
             };
-            persist.db_uploaded_texture.Upsert(metadata);
+            queuedTextureInserts.Add(metadata);
 
             return asset;
         }
@@ -112,7 +135,8 @@ namespace DeltaWebMap.Charlie.Framework.Managers
                 type = -1,
                 description = extension
             };
-            persist.db_uploaded_assets.Insert(asset);
+            queuedAssetInserts.Add(asset);
+            session.assetsUploaded++;
 
             return f;
         }
@@ -124,7 +148,7 @@ namespace DeltaWebMap.Charlie.Framework.Managers
         private Guid GenerateUniqueGuid()
         {
             Guid g = Guid.NewGuid();
-            while (persist.db_uploaded_assets.FindById(g) != null)
+            while (session.persist.db_uploaded_assets.FindById(g) != null)
                 g = Guid.NewGuid();
             return g;
         }

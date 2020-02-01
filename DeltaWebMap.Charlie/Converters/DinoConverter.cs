@@ -12,7 +12,7 @@ namespace DeltaWebMap.Charlie.Converters
 {
     public static class DinoConverter
     {
-        public static DinosaurEntry ConvertDino(CharlieSession session, UAssetBlueprint bp)
+        public static DinosaurEntry ConvertDino(CharlieSession session, UAssetBlueprint bp, Dictionary<string, UAssetBlueprint> dinoEntries)
         {
             //Get status component
             UAssetBlueprint status = GetStatusComponent(bp);
@@ -31,9 +31,9 @@ namespace DeltaWebMap.Charlie.Converters
 
             //Use name tag to find entry
             string tag = bp.defaults.GetPropertyName("DinoNameTag", null);
-            if (!session.dinoEntries.ContainsKey(tag))
+            if (!dinoEntries.ContainsKey(tag))
                 return null;
-            UAssetBlueprint entry = session.dinoEntries[tag];
+            UAssetBlueprint entry = dinoEntries[tag];
 
             //Get the icon
             var entryMaterial = entry.defaults.GetPropertyByName<ObjectProperty>("DinoMaterial").GetReferencedMaterialAsset();

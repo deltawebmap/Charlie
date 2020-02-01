@@ -1,13 +1,8 @@
 ﻿using DeltaWebMap.Charlie.Converters;
-using DeltaWebMap.Charlie.Framework;
 using DeltaWebMap.Charlie.Framework.Exceptions;
-using DeltaWebMap.Charlie.Framework.Managers;
-using DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports;
-using DeltaWebMap.Charlie.Framework.UE;
 using DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine;
 using DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties;
-using LibDeltaSystem;
 using LibDeltaSystem.Db.ArkEntries;
 using LibDeltaSystem.Entities.ArkEntries.Dinosaur;
 using MongoDB.Driver;
@@ -17,40 +12,19 @@ using System.Text;
 
 namespace DeltaWebMap.Charlie
 {
-    public class CharlieSession
+    public static class CharlieConverter
     {
-        public UEInstall install;
-        public CharlieConfig config;
-        public CharliePersist persist;
-        public AssetManager assetManager;
-
-        public Dictionary<string, UAssetBlueprint> dinoEntries;
-
-        public const string DEFAULT_MOD_ID = "ARK_BASE_GAME";
-
-        public CharlieSession(UEInstall install, CharlieConfig config)
-        {
-            this.install = install;
-            this.config = config;
-
-            this.persist = new CharliePersist(config);
-            this.persist.Load();
-
-            this.assetManager = new AssetManager(config, persist, new AssetManagerTransportFirebase());
-            this.assetManager.transport.StartSession(config);
-        }
-
-        public void Run()
+        public static void Run(CharlieSession session)
         {
             //Ppen the Primal Game Data
-            UAssetBlueprint pgd = install.OpenBlueprint(install.GetFileFromGamePath("/Game/PrimalEarth/CoreBlueprints/PrimalGameData_BP.uasset").GetFilename());
+            UAssetBlueprint pgd = session.install.OpenBlueprint(session.install.GetFileFromGamePath("/Game/PrimalEarth/CoreBlueprints/PrimalGameData_BP.uasset").GetFilename());
 
             //Open all dino entries
-            dinoEntries = GetDinoEntries(pgd);
+            Dictionary<string, UAssetBlueprint> dinoEntries = GetDinoEntries(pgd);
 
             //Seek the files
-            AssetSeeker s = new AssetSeeker(install, config.exclude_regex);
-            var files = s.SeekAssets(persist);
+            AssetSeeker s = new AssetSeeker(session.install, session.config.exclude_regex);
+            var files = s.SeekAssets(session.persist);
 
             //Create queues
             List<WriteModel<DbArkEntry<DinosaurEntry>>> queueDinos = new List<WriteModel<DbArkEntry<DinosaurEntry>>>();
@@ -59,12 +33,14 @@ namespace DeltaWebMap.Charlie
             //Now run each file
             foreach (var f in files)
             {
+                session.entriesScanned++;
+
                 //Open blueprint
                 UAssetBlueprint bp;
                 Console.ForegroundColor = ConsoleColor.Red;
                 try
                 {
-                    bp = install.OpenBlueprint(f.Key);
+                    bp = session.install.OpenBlueprint(f.Key);
                 }
                 catch (FailedToFindDefaultsException)
                 {
@@ -79,12 +55,23 @@ namespace DeltaWebMap.Charlie
                     //Insert in database
                     if (f.Value == DiscoveredFileType.Dino)
                     {
-                        DinosaurEntry entry = DinoConverter.ConvertDino(this, bp);
+                        DinosaurEntry entry = DinoConverter.ConvertDino(session, bp, dinoEntries);
                         if (entry == null)
                             continue;
-                        QueueEntryDb(queueDinos, entry, entry.classname, DEFAULT_MOD_ID);
+                        QueueEntryDb(queueDinos, entry, entry.classname, CharlieSession.DEFAULT_MOD_ID);
+                        session.Log("ConvertItem", $"Converted {entry.classname} as DINO.");
+                        session.entriesUpdated++;
+                    } else if (f.Value == DiscoveredFileType.Item)
+                    {
+                        ItemEntry entry = ItemConverter.ConvertItem(session, bp);
+                        if (entry == null)
+                            continue;
+                        QueueEntryDb(queueItems, entry, entry.classname, CharlieSession.DEFAULT_MOD_ID);
+                        session.Log("ConvertItem", $"Converted {entry.classname} as ITEM.");
+                        session.entriesUpdated++;
                     }
-                } catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     Console.WriteLine("Error while parsing: " + ex.Message);
                 }
@@ -93,20 +80,14 @@ namespace DeltaWebMap.Charlie
             }
 
             //Commit changes
-            DeltaConnection conn = new DeltaConnection(config.delta_cfg, "CHARLIE-DEPLOY", 1, 1);
-            conn.Connect().GetAwaiter().GetResult();
+            var conn = session.GetDbConnection();
             if (queueDinos.Count > 0)
                 conn.arkentries_dinos.BulkWrite(queueDinos);
-            if(queueItems.Count > 0)
+            if (queueItems.Count > 0)
                 conn.arkentries_items.BulkWrite(queueItems);
         }
 
-        public void EndSession()
-        {
-            assetManager.transport.EndSession();
-        }
-
-        private void QueueEntryDb<T>(List<WriteModel<DbArkEntry<T>>> queue, T payload, string classname, string mod)
+        private static void QueueEntryDb<T>(List<WriteModel<DbArkEntry<T>>> queue, T payload, string classname, string mod)
         {
             //Create
             DbArkEntry<T> entry = new DbArkEntry<T>
@@ -127,19 +108,19 @@ namespace DeltaWebMap.Charlie
             queue.Add(a);
         }
 
-        private Dictionary<string, UAssetBlueprint> GetDinoEntries(UAssetBlueprint pgd)
+        private static Dictionary<string, UAssetBlueprint> GetDinoEntries(UAssetBlueprint pgd)
         {
             //Get the array in which data is stored in 
             ArrayProperty entriesArray = pgd.defaults.GetPropertyByName<ArrayProperty>("DinoEntries");
 
             //Read all
             Dictionary<string, UAssetBlueprint> map = new Dictionary<string, UAssetBlueprint>();
-            foreach(var e in entriesArray.properties)
+            foreach (var e in entriesArray.properties)
             {
                 ObjectProperty prop = (ObjectProperty)e;
                 UAssetBlueprint bp = prop.GetReferencedBlueprintAsset();
                 string tag = bp.defaults.GetPropertyByName<NameProperty>("DinoNameTag").valueName;
-                if(!map.ContainsKey(tag))
+                if (!map.ContainsKey(tag))
                     map.Add(tag, bp);
             }
             return map;

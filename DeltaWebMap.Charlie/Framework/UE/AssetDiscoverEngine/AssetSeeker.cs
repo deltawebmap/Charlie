@@ -25,7 +25,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
         public Dictionary<string, DiscoveredFileType> SeekAssets(CharliePersist session)
         {          
             //Check if we *need* to check this
-            if((DateTime.UtcNow - session.discovery.time).TotalDays < 3 && session.discovery.files.Values.Count > 0)
+            if((DateTime.UtcNow - session.discovery.time).TotalDays < 20 && session.discovery.files.Values.Count > 0)
             {
                 //Our local file is relatively up to date, so we'll keep this
                 session.InfoLog("SeekAssets", $"File discovery is relatively up to date, so the cached version from {session.discovery.time.ToShortDateString()} at {session.discovery.time.ToLongTimeString()}.");
