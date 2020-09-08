@@ -50,7 +50,16 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties
             "DinoSetup",
             "WeaponAnim",
             "CanvasIcon",
-            "WeaponData"
+            "WeaponData",
+            /* New 5-9-2020 */
+            "PrimalEquipmentDefinition",
+            "PlayerCharacterGenderDefinition",
+            "BoneModifierRangeArray",
+            "PrimalItemDefinition",
+            "LevelExperienceRamp",
+            "PrimalItemStatDefinition",
+            "PrimalCharacterStatusStateDefinition",
+            "PrimalCharacterStatusValueDefinition"
         };
 
         public override string GetDebugString()

@@ -23,15 +23,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
         }
 
         public Dictionary<string, DiscoveredFileType> SeekAssets(CharliePersist session)
-        {          
-            //Check if we *need* to check this
-            if((DateTime.UtcNow - session.discovery.time).TotalDays < 20 && session.discovery.files.Values.Count > 0)
-            {
-                //Our local file is relatively up to date, so we'll keep this
-                session.InfoLog("SeekAssets", $"File discovery is relatively up to date, so the cached version from {session.discovery.time.ToShortDateString()} at {session.discovery.time.ToLongTimeString()}.");
-                return session.discovery.files;
-            }
-            
+        {                     
             //Discover all files that we will use by doing a basic, binary, search
             List<DiscoveredFile> files = new List<DiscoveredFile>();
             long bytesRead = 0;
@@ -44,10 +36,14 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
             {
                 while(isRunning)
                 {
+                    string logMsg;
                     if(files.Count == 0)
-                        Console.Write($"\rRead {itemsRead} files, with {files.Count} of which being readable. {regexSkipped} regex skipped. {bytesRead / 1000 / 1000} MB read.                                                                      ");
+                        logMsg = ($"Read {itemsRead} files, with {files.Count} of which being readable. {regexSkipped} regex skipped. {bytesRead / 1000 / 1000} MB read.                                                                      ");
                     else
-                        Console.Write($"\rRead {itemsRead} files, with {files.Count} of which being readable. {regexSkipped} regex skipped. {bytesRead / 1000 / 1000} MB read. Last: "+files[files.Count - 1].pathname+"              ");
+                        logMsg = ($"Read {itemsRead} files, with {files.Count} of which being readable. {regexSkipped} regex skipped. {bytesRead / 1000 / 1000} MB read. Last: "+files[files.Count - 1].pathname.Substring(install.info.FullName.Length)+"              ");
+                    while (logMsg.Length < Console.WindowWidth)
+                        logMsg += " ";
+                    Console.Write("\r" + logMsg);
                     Thread.Sleep(50);
                 }
             });
@@ -58,15 +54,12 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
             DiscoverDirectory(install.info.FullName, files, ref bytesRead, ref itemsRead, ref regexSkipped);
             isRunning = false;
 
-            //Write to file
-            session.discovery = new Persist.DiscoveryFile();
+            //Create response
+            var discovery = new Persist.DiscoveryFile();
             foreach (var f in files)
-                session.discovery.files.Add(f.pathname, f.type);
+                discovery.files.Add(f.pathname, f.type);
 
-            //Save
-            session.Save();
-
-            return session.discovery.files;
+            return discovery.files;
         }
 
         private void DiscoverDirectory(string path, List<DiscoveredFile> output, ref long bytesRead, ref int itemsRead, ref int regexSkipped)
@@ -87,7 +80,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
                     DiscoveredFileType type = CheckFile(f, out thisSize);
 
                     //Add
-                    if (type != DiscoveredFileType.None)
+                    if ((int)type >= 0)
                     {
                         output.Add(new DiscoveredFile
                         {
@@ -147,7 +140,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
                 fs.Position += 7 * 4;
                 int temp = IOMemoryStream.StaticReadInt32(fs, true);
                 if (temp > 128)
-                    return DiscoveredFileType.None; //This is not a valid file.
+                    return DiscoveredFileType.Unreadable; //This is not a valid file.
                 fs.Position += temp + 4;
 
                 //Read length and position of the name table
@@ -160,14 +153,14 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
 
                 //Jump to the name table start position and begin reading.
                 if (ntPos > fs.Length || ntPos <= 0 || ntLen > fs.Length || ntLen <= 0 || bitTablePos > fs.Length || bitTablePos <= 0 || ntPos > bitTablePos)
-                    return DiscoveredFileType.None; //This is not a valid file.
+                    return DiscoveredFileType.Unreadable; //This is not a valid file.
                 fs.Position = ntPos;
 
                 //Read in from the name table to the binary id table. This is more data than we'll actually *use*, but it's better than querying the disk over and over
                 byte[] buffer = new byte[bitTablePos - ntPos];
                 fs.Read(buffer, 0, buffer.Length);
 
-                //Begin to read from the buffer
+                //Read each string from the name table we loaded into the buffer
                 int offset = 0;
                 for(int i = 0; i<ntLen; i++)
                 {
@@ -177,7 +170,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.AssetDiscoverEngine
 
                     //Check length
                     if (len > 256 || len < 1)
-                        return DiscoveredFileType.None; //This is not a valid file.
+                        return DiscoveredFileType.Unreadable; //This is not a valid file.
 
                     //Read
                     string s = Encoding.UTF8.GetString(buffer, offset, len - 1);

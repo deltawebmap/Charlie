@@ -51,14 +51,18 @@ namespace DeltaWebMap.Charlie.Converters
                 extraBabyAgeMultiplier = bp.defaults.GetPropertyFloat("ExtraBabyAgeSpeedMultiplier", -1),
                 useBabyGestation = bp.defaults.GetPropertyBool("bUseBabyGestation", false),
                 statusComponent = ConvertStatus(status),
-                adultFoods = ConvertFoods(adultSettings),
-                childFoods = ConvertFoods(childSettings),
+                adultFoods = ConvertFoods(adultSettings).ToArray(),
+                childFoods = ConvertFoods(childSettings).ToArray(),
                 classname = bp.classname,
                 icon = iconAsset
             };
 
             //Finally, read stats
             RipStats(bp, e);
+
+            //Hash
+            e.hash = ObjectHashTool.HashObject(e);
+
             return e;
         }
 

@@ -17,7 +17,6 @@ namespace DeltaWebMap.Charlie.Framework
         public LiteDatabase db;
         public LiteCollection<CDbUploadedAsset> db_uploaded_assets;
         public LiteCollection<CDbTexture2D> db_uploaded_texture;
-        public DiscoveryFile discovery;
 
         public CharliePersist(CharlieConfig config)
         {
@@ -29,12 +28,12 @@ namespace DeltaWebMap.Charlie.Framework
 
         public void Load()
         {
-            discovery = FileLoaderHelper<DiscoveryFile>(config.persist + "discovered_files.json");
+            
         }
 
         public void Save()
         {
-            FileSaveHelper(config.persist + "discovered_files.json", discovery);
+            
         }
 
         private T FileLoaderHelper<T>(string path)

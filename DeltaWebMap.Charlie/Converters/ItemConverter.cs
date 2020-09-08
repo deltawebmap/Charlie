@@ -1,4 +1,5 @@
-﻿using DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes;
+﻿using DeltaWebMap.Charlie.Framework;
+using DeltaWebMap.Charlie.Framework.UE.Assets.UAssetTypes;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader.Properties;
 using DeltaWebMap.Charlie.Framework.UE.PropertyReader.Structs;
@@ -15,13 +16,22 @@ namespace DeltaWebMap.Charlie.Converters
         public static ItemEntry ConvertItem(CharlieSession session, UAssetBlueprint bp)
         {
             //Get the primary icon
-            ObjectProperty iconRef = bp.defaults.GetPropertyByName<ObjectProperty>("ItemIcon");
-            UAssetTexture2D icon = iconRef.GetReferencedTexture2DAsset();
-            DeltaAsset iconAsset = session.assetManager.AddTexture2D(icon);
+            DeltaAsset iconAsset;
+            try
+            {
+                ObjectProperty iconRef = bp.defaults.GetPropertyByName<ObjectProperty>("ItemIcon");
+                UAssetTexture2D icon = iconRef.GetReferencedTexture2DAsset();
+                iconAsset = session.assetManager.AddTexture2D(icon);
+            } catch (Exception ex)
+            {
+                //Fallback
+                session.Log("ItemConverter", "Failed to get item for " + bp.pathname, ConsoleColor.Yellow);
+                iconAsset = DeltaAsset.MISSING_ICON;
+            }
 
             //Get the array of UseItemAddCharacterStatusValues
             ArrayProperty statusValuesArray = bp.defaults.GetPropertyByName<ArrayProperty>("UseItemAddCharacterStatusValues");
-            Dictionary<string, ItemEntry_ConsumableAddStatusValue> statusValues = new Dictionary<string, ItemEntry_ConsumableAddStatusValue>();
+            List<ItemEntry_ConsumableAddStatusValue> statusValues = new List<ItemEntry_ConsumableAddStatusValue>();
             if (statusValuesArray != null)
             {
                 foreach (var i in statusValuesArray.properties)
@@ -30,8 +40,18 @@ namespace DeltaWebMap.Charlie.Converters
                     var svp = ((PropListStruct)sv.value).properties;
                     string type = svp.GetPropertyByName<ByteProperty>("StatusValueType").enumValue;
                     ItemEntry_ConsumableAddStatusValue sve = ConvertAddValues(svp, type);
-                    statusValues.Add(type, sve);
+                    statusValues.Add(sve);
                 }
+            }
+
+            //If this is for a structure, get the structure to build
+            var structureRef = bp.defaults.GetPropertyByName<ObjectProperty>("StructureToBuild");
+            string structureName = null;
+            if(structureRef != null)
+            {
+                var structure = structureRef.GetReferencedBlueprintAsset();
+                structureName = structure.classname;
+                //We'll likely add more here later
             }
 
             //Create
@@ -51,8 +71,13 @@ namespace DeltaWebMap.Charlie.Converters
                 maxItemQuantity = bp.defaults.GetPropertyInt("MaxItemQuantity", 0),
                 classname = bp.classname,
                 icon = iconAsset,
-                addStatusValues = statusValues
+                addStatusValues = statusValues.ToArray(),
+                structure_classname = structureName,
+                hash = 0
             };
+
+            //Hash
+            e.hash = ObjectHashTool.HashObject(e);
             return e;
         }
 

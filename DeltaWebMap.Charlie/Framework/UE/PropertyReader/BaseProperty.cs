@@ -67,6 +67,7 @@ namespace DeltaWebMap.Charlie.Framework.UE.PropertyReader
                 case "NameProperty": prop = new NameProperty(); break;
                 case "ObjectProperty": prop = new ObjectProperty(); break;
                 case "StrProperty": prop = new StrProperty(); break;
+                case "AssetObjectProperty": prop = new StrProperty(); break; /* NEW: Looks like this is just thes ame as StrProperty? */
                 case "StructProperty": prop = new StructProperty(); break;
                 case "TextProperty": prop = new TextProperty(); break;
                 case "UInt16Property": prop = new UInt16Property(); break;

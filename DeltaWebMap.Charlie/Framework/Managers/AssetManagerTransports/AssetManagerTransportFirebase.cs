@@ -175,7 +175,8 @@ namespace DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports
                             glob = "**",
                             headers = new Dictionary<string, string>
                             {
-                                {"Cache-Control", "max-age=1800" }
+                                {"Cache-Control", "max-age=1800" },
+                                {"Access-Control-Allow-Origin", "*" }
                             }
                         }
                     }
@@ -231,7 +232,7 @@ namespace DeltaWebMap.Charlie.Framework.Managers.AssetManagerTransports
             return sr;
         }
 
-        private string GetAuthToken(string firebaseCfgPath)
+        public string GetAuthToken(string firebaseCfgPath)
         {
             using (var stream = new FileStream(firebaseCfgPath, FileMode.Open, FileAccess.Read))
             {
