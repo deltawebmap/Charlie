@@ -6,7 +6,7 @@ using System.Text;
 
 namespace DeltaWebMap.Charlie.Framework
 {
-    public class IOMemoryStream
+    public class IOMemoryStream : IDisposable
     {
         public bool is_little_endian = true;
 
@@ -67,7 +67,7 @@ namespace DeltaWebMap.Charlie.Framework
 
         public long ReadLong()
         {
-            return BitConverter.ToInt64(PrivateReadBytes(4), 0);
+            return BitConverter.ToInt64(PrivateReadBytes(8), 0);
         }
 
         public float ReadFloat()
@@ -106,7 +106,12 @@ namespace DeltaWebMap.Charlie.Framework
                 throw new Exception("Failed to read null-terminated string; Length from file exceeded maximum length requested.");
 
             //My friend's arg broke this reader. Turns out extended characters use TWO bytes. I think if the length is negative, it's two bytes per character
-            if (length < 0)
+            if(length == 0)
+            {
+                //Do nothing
+                return "";
+            }
+            else if (length < 0)
             {
                 //Read this many bytes * 2
                 byte[] buf = ReadBytes((-length * 2) - 1);
@@ -192,6 +197,11 @@ namespace DeltaWebMap.Charlie.Framework
         public static int StaticReadInt32(Stream s, bool is_little_endian = true)
         {
             return BitConverter.ToInt32(StaticReadBytes(s, 4, is_little_endian), 0);
+        }
+
+        public void Dispose()
+        {
+            
         }
     }
 }

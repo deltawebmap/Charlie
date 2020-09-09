@@ -14,6 +14,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace DeltaWebMap.Charlie
@@ -31,8 +32,6 @@ namespace DeltaWebMap.Charlie
         public int entriesUpdated;
         public int entriesScanned;
 
-        public const string DEFAULT_MOD_ID = "ARK_BASE_GAME";
-
         public CharlieSession(UEInstall install, CharlieConfig config)
         {
             this.install = install;
@@ -48,23 +47,34 @@ namespace DeltaWebMap.Charlie
 
         public void Run()
         {
-            //Ppen the Primal Game Data
-            UAssetBlueprint pgd = install.OpenBlueprint(install.GetFileFromGamePath("/Game/PrimalEarth/CoreBlueprints/PrimalGameData_BP.uasset").GetFilename());
-
-            //Open all dino entries
-            Dictionary<string, UAssetBlueprint> dinoEntries = GetDinoEntries(pgd);
-
             //Seek the files
             AssetSeeker s = new AssetSeeker(install, config.exclude_regex);
             var files = s.SeekAssets(persist);
 
-            //Create queues
-            List<WriteModel<DbArkEntry<DinosaurEntry>>> queueDinos = new List<WriteModel<DbArkEntry<DinosaurEntry>>>();
-            List<WriteModel<DbArkEntry<ItemEntry>>> queueItems = new List<WriteModel<DbArkEntry<ItemEntry>>>();
+            //Open main base game package
+            ArkPackage mainPackage = new ArkPackage(this, 0, "BASE_GAME", "/Game/PrimalEarth/CoreBlueprints/PrimalGameData_BP.uasset", "DinoEntries");
 
-            //Get packages
-            var dinoPackage = GetModPackage(0, "SPECIES");
-            var itemPackage = GetModPackage(0, "ITEMS");
+            //Discover and load mod info
+            ArkModPackage[] mods = LoadModsInfo();
+
+            //Compile into a package list
+            ArkPackage[] packages = new ArkPackage[mods.Length + 1];
+            packages[0] = mainPackage;
+            Array.Copy(mods, 0, packages, 1, mods.Length);
+
+            //Load all PrimalGameDatas
+            foreach (var p in packages)
+            {
+                Log("LoadPackages", $"Loading PrimalGameData for package '{p.title}' ({p.modId})...", ConsoleColor.Cyan);
+                try
+                {
+                    p.InitPackage();
+                    Log("LoadPackages", $"Loaded {p.dinoEntries.Count} dino entries from package successfully.", ConsoleColor.Green);
+                } catch (Exception ex)
+                {
+                    Log("LoadPackages", $"Failed to load PrimalGameData for package! {ex.Message}", ConsoleColor.Red);
+                }
+            }
 
             //Now run each file
             foreach (var f in files)
@@ -85,6 +95,15 @@ namespace DeltaWebMap.Charlie
                 {
                     Log("ConvertItem", $"[{f.Key}-{f.Value}] Failed to open blueprint!", ConsoleColor.Magenta);
                     continue;
+                }
+
+                //Find the package this belongs to
+                ArkPackage filePackage = mainPackage; //We assume it belongs to the root game initially
+                string gamePath = bp.file.GetGamePath();
+                foreach(var p in packages)
+                {
+                    if (p.IsFileBelongingToPackage(gamePath))
+                        filePackage = p;
                 }
 
                 //Read the defaults and determine the true type
@@ -109,10 +128,10 @@ namespace DeltaWebMap.Charlie
                     //Insert in database
                     if (trueType == DiscoveredFileType.Dino)
                     {
-                        DinosaurEntry entry = DinoConverter.ConvertDino(this, bp, dinoEntries);
+                        DinosaurEntry entry = DinoConverter.ConvertDino(this, bp, filePackage.dinoEntries);
                         if (entry == null)
                             continue;
-                        QueueEntryDb(queueDinos, entry, entry.classname, dinoPackage);
+                        QueueEntryDb(filePackage.queueDinos, entry, entry.classname, filePackage.packageDinos);
                         classname = entry.classname;
                     }
                     else if (trueType == DiscoveredFileType.Item)
@@ -120,7 +139,7 @@ namespace DeltaWebMap.Charlie
                         ItemEntry entry = ItemConverter.ConvertItem(this, bp);
                         if (entry == null)
                             continue;
-                        QueueEntryDb(queueItems, entry, entry.classname, itemPackage);
+                        QueueEntryDb(filePackage.queueItems, entry, entry.classname, filePackage.packageItems);
                         classname = entry.classname;
                     } else if(f.Value == DiscoveredFileType.Structure)
                     {
@@ -141,15 +160,41 @@ namespace DeltaWebMap.Charlie
                 }
             }
 
-            //Commit changes
-            if (queueDinos.Count > 0)
-                Program.db.arkentries_dinos.BulkWrite(queueDinos);
-            if (queueItems.Count > 0)
-                Program.db.arkentries_items.BulkWrite(queueItems);
+            //Commit changes to all packages
+            foreach (var p in packages)
+            {
+                Log("CommitChanges", $"Commiting changes for package '{p.title}' ({p.modId})...", ConsoleColor.Cyan);
+                p.CommitChanges();
+                Log("CommitChanges", $"Committed {p.queueDinos.Count} dinos, {p.queueItems.Count} items successfully!", ConsoleColor.Green);
+            }
 
-            //Commit packages
-            dinoPackage.UpdateModifiedTimeAsync(Program.db).GetAwaiter().GetResult();
-            itemPackage.UpdateModifiedTimeAsync(Program.db).GetAwaiter().GetResult();
+            //Upload content
+            Log("FinalizeChanges", "Uploading media...", ConsoleColor.Cyan);
+            assetManager.FinalizeItems();
+        }
+
+        private ArkModPackage[] LoadModsInfo()
+        {
+            //Find all .mod files in the mods folder
+            string[] modFiles = Directory.GetFiles(install.GetNamespaceFromGamePath("/Game/Mods/").info.FullName);
+
+            //Loop through mods and load
+            List<ArkModPackage> packages = new List<ArkModPackage>();
+            foreach(var m in modFiles)
+            {
+                //Validate that this is a .mod file
+                if (!m.EndsWith(".mod"))
+                    continue;
+
+                //Load the package
+                ArkModPackage pack = ArkModPackage.GetArkModPackageFromMod(this, m);
+
+                //Add
+                if(pack.customProperties.ContainsKey("PrimalGameData"))
+                    packages.Add(pack);
+            }
+
+            return packages.ToArray();
         }
 
         private static void QueueEntryDb<T>(List<WriteModel<DbArkEntry<T>>> queue, T payload, string classname, DbPrimalPackage package)
@@ -171,52 +216,6 @@ namespace DeltaWebMap.Charlie
             var a = new ReplaceOneModel<DbArkEntry<T>>(filter, entry);
             a.IsUpsert = true;
             queue.Add(a);
-        }
-
-        private static Dictionary<string, UAssetBlueprint> GetDinoEntries(UAssetBlueprint pgd)
-        {
-            //Get the array in which data is stored in 
-            ArrayProperty entriesArray = pgd.defaults.GetPropertyByName<ArrayProperty>("DinoEntries");
-
-            //Read all
-            Dictionary<string, UAssetBlueprint> map = new Dictionary<string, UAssetBlueprint>();
-            foreach (var e in entriesArray.properties)
-            {
-                ObjectProperty prop = (ObjectProperty)e;
-                UAssetBlueprint bp = prop.GetReferencedBlueprintAsset();
-                string tag = bp.defaults.GetPropertyByName<NameProperty>("DinoNameTag").valueName;
-                if (!map.ContainsKey(tag))
-                    map.Add(tag, bp);
-            }
-            return map;
-        }
-
-        public void EndSession()
-        {
-            assetManager.FinalizeItems();
-        }
-
-        public DbPrimalPackage GetModPackage(long modId, string packageType)
-        {
-            //Try to get existing packages
-            var package = Program.db.GetPrimalPackageByModAsync(modId, packageType).GetAwaiter().GetResult();
-            if (package != null)
-                return package;
-
-            //Create new package
-            package = new DbPrimalPackage
-            {
-                last_updated = DateTime.UtcNow.Ticks,
-                mod_id = modId,
-                name = Guid.NewGuid().ToString(),
-                package_type = packageType
-            };
-
-            //Insert
-            Program.db.arkentries_primal_packages.InsertOne(package);
-            Log("GetModPackage", $"Package {package.name} created for {modId}:{packageType}", ConsoleColor.Green);
-
-            return package;
         }
 
         public void Log(string topic, string msg, ConsoleColor color)

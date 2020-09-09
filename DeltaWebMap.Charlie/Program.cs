@@ -49,7 +49,6 @@ namespace DeltaWebMap.Charlie
             //Begin and run session
             CharlieSession session = new CharlieSession(install, config);
             session.Run();
-            session.EndSession();
 
             //Done
             Console.WriteLine("Done");

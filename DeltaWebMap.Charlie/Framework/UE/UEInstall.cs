@@ -15,10 +15,53 @@ namespace DeltaWebMap.Charlie.Framework.UE
         {
             info = new DirectoryInfo(contentPath);
             blueprintCache = new Dictionary<string, UAssetBlueprint>();
+            namespaceRemaps = new Dictionary<string, string>();
         }
 
         public DirectoryInfo info;
         public Dictionary<string, UAssetBlueprint> blueprintCache;
+        private Dictionary<string, string> namespaceRemaps; //Used for mod installations. Remaps from the key to the value
+
+        public void AddRemap(string from, string to)
+        {
+            namespaceRemaps.Add(from, to);
+        }
+
+        /// <summary>
+        /// Runs through the remappings and returns the result. This converts from a path ARK uses to a path that can be read on the filesystem
+        /// </summary>
+        /// <param name="pathname"></param>
+        /// <returns></returns>
+        public string RemapGamePath(string pathname)
+        {
+            //Search for remappings
+            foreach(var r in namespaceRemaps)
+            {
+                if(pathname.StartsWith(r.Key))
+                {
+                    pathname = r.Value + pathname.Substring(r.Key.Length);
+                }
+            }
+            return pathname;
+        }
+
+        /// <summary>
+        /// Does the reverse of what RemapGamePath does
+        /// </summary>
+        /// <param name="pathname"></param>
+        /// <returns></returns>
+        public string ReverseRemapGamePath(string pathname)
+        {
+            //Search for remappings
+            foreach (var r in namespaceRemaps)
+            {
+                if (pathname.StartsWith(r.Value))
+                {
+                    pathname = r.Key + pathname.Substring(r.Value.Length);
+                }
+            }
+            return pathname;
+        }
 
         /// <summary>
         /// Gets a file from a game path. Game paths will always begin in "/Game/".
@@ -30,6 +73,9 @@ namespace DeltaWebMap.Charlie.Framework.UE
             //Verify
             if (!pathname.StartsWith("/Game/"))
                 throw new Exception("This is not a namespace path.");
+
+            //Remap
+            pathname = RemapGamePath(pathname);
 
             //Get path
             string path = info.FullName + pathname.Substring("/Game/".Length);
@@ -48,6 +94,9 @@ namespace DeltaWebMap.Charlie.Framework.UE
             //Verify
             if (!pathname.StartsWith("/Game/"))
                 throw new Exception("This is not a namespace path.");
+
+            //Remap
+            pathname = RemapGamePath(pathname);
 
             //Get path
             string path = info.FullName + pathname.Substring("/Game/".Length);
